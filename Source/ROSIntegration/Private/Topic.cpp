@@ -8,8 +8,10 @@
 #include "Conversion/Messages/geometry_msgs/GeometryMsgsVector3Converter.h"
 #include "Conversion/Messages/geometry_msgs/GeometryMsgsPointConverter.h"
 #include "Conversion/Messages/geometry_msgs/GeometryMsgsPoseConverter.h"
-
-
+#include "geometry_msgs/Twist.h"
+#include "std_msgs/Float32.h"
+#include "std_msgs/Int32.h"
+#include "std_msgs/Int64.h"
 
 
 static TMap<FString, UBaseMessageConverter*> TypeConverterMap;

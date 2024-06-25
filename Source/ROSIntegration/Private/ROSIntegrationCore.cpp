@@ -1,9 +1,9 @@
 #include "ROSIntegrationCore.h"
-#include "ROSIntegrationGameInstance.h"
-#include "rosbridge2cpp/TCPConnection.h"
-#include "rosbridge2cpp/WebsocketConnection.h"
-#include "rosbridge2cpp/ros_bridge.h"
-#include "rosbridge2cpp/ros_topic.h"
+//#include "ROSIntegrationGameInstance.h"
+//#include "rosbridge2cpp/TCPConnection.h"
+//#include "rosbridge2cpp/WebsocketConnection.h"
+//#include "rosbridge2cpp/ros_bridge.h"
+//#include "rosbridge2cpp/ros_topic.h"
 
 #include "SpawnManager.h"
 #include "SpawnObjectMessage.h"
@@ -20,246 +20,224 @@ DEFINE_LOG_CATEGORY(LogROS);
 	}
 
 
-// PIMPL
-class UImpl::Impl
+
+rosbridge2cpp::ROSBridge& UImpl::Impl::GetBridge()
 {
-	// hidden implementation details
-	TCPConnection* _TCPConnection = nullptr;
-	WebsocketConnection* _WebsocketConnection = nullptr;
-	rosbridge2cpp::ROSBridge* _Ros = nullptr;
-public:
-	bool _bson_test_mode;
+	return *_Ros;
+}
+void UImpl::Impl::SpawnArrayMessageCallback(const ROSBridgePublishMsg& message)
+{
+	if (!rosbridge2cpp::Helper::bson_has_key(*message.full_msg_bson_, "msg.markers")) {
+		UE_LOG(LogROS, Warning, TEXT("msg.markers field missing from SpawnArray Message"));
+		return;
+	}
 
-	rosbridge2cpp::ROSBridge& GetBridge() { return *_Ros; }
+	bson_iter_t iter;
+	bson_iter_t val;
 
-	UWorld* _World = nullptr;
+	if (bson_iter_init(&iter, message.full_msg_bson_) && bson_iter_find_descendant(&iter, "msg.markers", &val) &&
+		BSON_ITER_HOLDS_ARRAY(&val)) {
+		UE_LOG(LogROS, Verbose, TEXT("Marker is included and is an array!"));
+	} else {
+		UE_LOG(LogROS, Verbose, TEXT("Marker is not included or isn't an array!"));
+	}
 
-	//UPROPERTY() // this UPROPERTY is completely useless and its ignored by the metacompiler which works only on headers  
-	USpawnManager* _SpawnManager = nullptr;
+	const char* key;
+	bson_iter_t child;
+	uint32_t array_len = 0;
 
-
-	std::unique_ptr<rosbridge2cpp::ROSTopic> _SpawnArrayMessageListener;
-
-private:
-	FString _ROSBridgeHost;
-	int32 _ROSBridgePort;
-
-public: 
-
-	void SpawnArrayMessageCallback(const ROSBridgePublishMsg& message)
-	{
-		if (!rosbridge2cpp::Helper::bson_has_key(*message.full_msg_bson_, "msg.markers")) {
-			UE_LOG(LogROS, Warning, TEXT("msg.markers field missing from SpawnArray Message"));
-			return;
-		}
-
-		bson_iter_t iter;
-		bson_iter_t val;
-
-		if (bson_iter_init(&iter, message.full_msg_bson_) && bson_iter_find_descendant(&iter, "msg.markers", &val) &&
-			BSON_ITER_HOLDS_ARRAY(&val)) {
-			UE_LOG(LogROS, Verbose, TEXT("Marker is included and is an array!"));
-		} else {
-			UE_LOG(LogROS, Verbose, TEXT("Marker is not included or isn't an array!"));
-		}
-
-		const char* key;
-		bson_iter_t child;
-		uint32_t array_len = 0;
-
-		bson_iter_recurse(&val, &child);
-		while (bson_iter_next(&child)) {
-			key = bson_iter_key(&child);
-			if (BSON_ITER_HOLDS_DOCUMENT(&child)) {
-				array_len++;
-			}
-		}
-
-		// Construct dot notation address to fetch data
-		for (uint32_t i = 0; i < array_len; ++i) {
-			double value;
-			int32 ivalue;
-			bool key_found;
-			SpawnObjectMessage Message;
-
-			const std::string marker_key_prefix("msg.markers.");
-			std::string LookupKey;
-			std::stringstream LookupKeyStream;
-
-			// TODO make this more generic or use other BSON library
-			// Use Templates instead of different functions?
-			// Make a Map that contains a tuple of (key, typ,e reference_to_variable_in_message) to automate everything?
-			LookupKeyStream << marker_key_prefix << i << ".pose.position.x";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Pose._Position.X = value;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".pose.position.y";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Pose._Position.Y = value;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".pose.position.z";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Pose._Position.Z = value;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".pose.orientation.x";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Pose._Orientation.X = value;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".pose.orientation.y";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Pose._Orientation.Y = value;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".pose.orientation.z";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Pose._Orientation.Z = value;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".pose.orientation.w";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Pose._Orientation.W = value;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".type";
-			LookupKey = LookupKeyStream.str();
-			ivalue = rosbridge2cpp::Helper::get_int32_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Type = ivalue;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".id";
-			LookupKey = LookupKeyStream.str();
-			ivalue = rosbridge2cpp::Helper::get_int32_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Id = ivalue;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".action";
-			LookupKey = LookupKeyStream.str();
-			ivalue = rosbridge2cpp::Helper::get_int32_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Action = ivalue;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".scale.x";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Scale.X = value;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".scale.y";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Scale.Y = value;
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".scale.z";
-			LookupKey = LookupKeyStream.str();
-			value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Scale.Z = value;
-
-			// Color
-			double R, G, B, CAlpha;
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".color.r";
-			LookupKey = LookupKeyStream.str();
-			R = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".color.g";
-			LookupKey = LookupKeyStream.str();
-			G = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".color.b";
-			LookupKey = LookupKeyStream.str();
-			B = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".color.a";
-			LookupKey = LookupKeyStream.str();
-			CAlpha = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-
-			Message._Color = FLinearColor(R, G, B, CAlpha);
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".text";
-			LookupKey = LookupKeyStream.str();
-			std::string MsgText =
-			rosbridge2cpp::Helper::get_utf8_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._Text = FString(MsgText.c_str());
-
-			LookupKeyStream.str("");
-			LookupKeyStream.clear();
-			LookupKeyStream << marker_key_prefix << i << ".mesh_resource";
-			LookupKey = LookupKeyStream.str();
-			std::string MeshResource =
-			rosbridge2cpp::Helper::get_utf8_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
-			UNREAL_ROS_CHECK_KEY_FOUND
-			Message._MeshResource = FString(MeshResource.c_str());
-
-			UE_LOG(LogROS, Verbose, TEXT("Enqueue Message"));
-			_SpawnManager->_SpawnObjectMessageQueue.Enqueue(Message);
-			UE_LOG(LogROS, Verbose, TEXT("Enqueue Message Done"));
+	bson_iter_recurse(&val, &child);
+	while (bson_iter_next(&child)) {
+		key = bson_iter_key(&child);
+		if (BSON_ITER_HOLDS_DOCUMENT(&child)) {
+			array_len++;
 		}
 	}
 
-	std::unique_ptr<rosbridge2cpp::ROSTopic> _SpawnMessageListener;
+		// Construct dot notation address to fetch data
+	for (uint32_t i = 0; i < array_len; ++i) {
+		double value;
+		int32 ivalue;
+		bool key_found;
+		SpawnObjectMessage Message;
 
-	void SpawnMessageCallback(const ROSBridgePublishMsg& message)
+		const std::string marker_key_prefix("msg.markers.");
+		std::string LookupKey;
+		std::stringstream LookupKeyStream;
+
+		// TODO make this more generic or use other BSON library
+		// Use Templates instead of different functions?
+		// Make a Map that contains a tuple of (key, typ,e reference_to_variable_in_message) to automate everything?
+		LookupKeyStream << marker_key_prefix << i << ".pose.position.x";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Pose._Position.X = value;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".pose.position.y";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Pose._Position.Y = value;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".pose.position.z";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Pose._Position.Z = value;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".pose.orientation.x";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Pose._Orientation.X = value;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".pose.orientation.y";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Pose._Orientation.Y = value;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".pose.orientation.z";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Pose._Orientation.Z = value;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".pose.orientation.w";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Pose._Orientation.W = value;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".type";
+		LookupKey = LookupKeyStream.str();
+		ivalue = rosbridge2cpp::Helper::get_int32_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Type = ivalue;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".id";
+		LookupKey = LookupKeyStream.str();
+		ivalue = rosbridge2cpp::Helper::get_int32_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Id = ivalue;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".action";
+		LookupKey = LookupKeyStream.str();
+		ivalue = rosbridge2cpp::Helper::get_int32_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Action = ivalue;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".scale.x";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Scale.X = value;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".scale.y";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Scale.Y = value;
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".scale.z";
+		LookupKey = LookupKeyStream.str();
+		value = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Scale.Z = value;
+
+		// Color
+		double R, G, B, CAlpha;
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".color.r";
+		LookupKey = LookupKeyStream.str();
+		R = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".color.g";
+		LookupKey = LookupKeyStream.str();
+		G = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".color.b";
+		LookupKey = LookupKeyStream.str();
+		B = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".color.a";
+		LookupKey = LookupKeyStream.str();
+		CAlpha = rosbridge2cpp::Helper::get_double_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+
+		Message._Color = FLinearColor(R, G, B, CAlpha);
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".text";
+		LookupKey = LookupKeyStream.str();
+		std::string MsgText =
+		rosbridge2cpp::Helper::get_utf8_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._Text = FString(MsgText.c_str());
+
+		LookupKeyStream.str("");
+		LookupKeyStream.clear();
+		LookupKeyStream << marker_key_prefix << i << ".mesh_resource";
+		LookupKey = LookupKeyStream.str();
+		std::string MeshResource =
+		rosbridge2cpp::Helper::get_utf8_by_key(LookupKey.c_str(), *message.full_msg_bson_, key_found);
+		UNREAL_ROS_CHECK_KEY_FOUND
+		Message._MeshResource = FString(MeshResource.c_str());
+
+		UE_LOG(LogROS, Verbose, TEXT("Enqueue Message"));
+		_SpawnManager->_SpawnObjectMessageQueue.Enqueue(Message);
+		UE_LOG(LogROS, Verbose, TEXT("Enqueue Message Done"));
+	}
+}
+
+
+void UImpl::Impl::SpawnMessageCallback(const ROSBridgePublishMsg& message)
 	{
 		UE_LOG(LogROS, Warning, TEXT("RECEIVED SPAWN MESSAGE --- Not implemented yet. Use the SpawnArray topic instead"));
 	}
 
-	Impl()
+UImpl::Impl::Impl()
 	{
 
 	}
 
-	~Impl()
+UImpl::Impl::~Impl()
 	{
 		UE_LOG(LogROS, Display, TEXT("UROSIntegrationCore ~Impl() "));
 		//_World = nullptr;
@@ -269,22 +247,22 @@ public:
 		if (_TCPConnection) delete _TCPConnection;
 	}
 
-	bool IsHealthy() const
+bool UImpl::Impl::IsHealthy() const
 	{
 		return ((_TCPConnection != nullptr && _TCPConnection->IsHealthy()) || (_WebsocketConnection != nullptr && _WebsocketConnection->IsHealthy())) && _Ros != nullptr && _Ros->IsHealthy();
 	}
 
-	void SetWorld(UWorld* World)
+void UImpl::Impl::SetWorld(UWorld* World)
 	{
 		_World = World;
 	}
 
-	void SetImplSpawnManager(USpawnManager* SpawnManager)
+void UImpl::Impl::SetImplSpawnManager(USpawnManager* SpawnManager)
 	{
 		_SpawnManager = SpawnManager;
 	}
 
-	bool Init(FString protocol, FString ROSBridgeHost, int32 ROSBridgePort, bool bson_test_mode)
+bool UImpl::Impl::Init(FString protocol, FString ROSBridgeHost, int32 ROSBridgePort, bool bson_test_mode)
 	{
 		_bson_test_mode = bson_test_mode;
 
@@ -314,17 +292,17 @@ public:
 		return true;
 	}
 
-	FString GetROSBridgeHost() const
+FString UImpl::Impl::GetROSBridgeHost() const
 	{
 		return _ROSBridgeHost;
 	}
 
-	int32 GetROSBridgePort() const
+int32 UImpl::Impl::GetROSBridgePort() const
 	{
 		return _ROSBridgePort;
 	}
 
-	void InitSpawnManager()
+void UImpl::Impl::InitSpawnManager()
 	{
 		// Listen to the object spawning thread
 		_SpawnMessageListener = std::unique_ptr<rosbridge2cpp::ROSTopic>(
@@ -340,7 +318,6 @@ public:
 		_SpawnManager->_World = _World;
 		_SpawnManager->_TickingActive = true;
 	}
-};
 
 
 

@@ -3,7 +3,12 @@
 #include <CoreMinimal.h>
 #include <UObject/ObjectMacros.h>
 #include <UObject/Object.h>
-
+#include "ROSIntegrationGameInstance.h"
+#include "TCPConnection.h"
+//#include "TCPConnection.h"
+#include "WebsocketConnection.h"
+#include "ros_bridge.h"
+#include "ros_topic.h"
 #include "ROSIntegrationCore.generated.h"
 
 ROSINTEGRATION_API DECLARE_LOG_CATEGORY_EXTERN(LogROS, Display, All);
@@ -29,7 +34,37 @@ class ROSINTEGRATION_API UImpl : public UObject
 protected:
 
 	// PIMPL
-	class Impl;
+	class Impl
+	{
+	public:
+		bool _bson_test_mode;
+		UWorld* _World = nullptr;
+		//UPROPERTY() // this UPROPERTY is completely useless and its ignored by the metacompiler which works only on headers  
+		USpawnManager* _SpawnManager = nullptr;
+		std::unique_ptr<rosbridge2cpp::ROSTopic> _SpawnMessageListener;
+		std::unique_ptr<rosbridge2cpp::ROSTopic> _SpawnArrayMessageListener;
+	private:
+		// hidden implementation details
+		TCPConnection* _TCPConnection = nullptr;
+		WebsocketConnection* _WebsocketConnection = nullptr;
+		rosbridge2cpp::ROSBridge* _Ros = nullptr;
+		FString _ROSBridgeHost;
+		int32 _ROSBridgePort;
+
+	public:
+		Impl();
+		~Impl();
+		rosbridge2cpp::ROSBridge& GetBridge();
+		void SpawnArrayMessageCallback(const ROSBridgePublishMsg& message);
+		void SpawnMessageCallback(const ROSBridgePublishMsg& message);
+		bool IsHealthy() const;
+		void SetWorld(UWorld* World);
+		void SetImplSpawnManager(USpawnManager* SpawnManager);
+		bool Init(FString protocol, FString ROSBridgeHost, int32 ROSBridgePort, bool bson_test_mode);
+		FString GetROSBridgeHost() const;
+		int32 GetROSBridgePort() const;
+		void InitSpawnManager();
+	};
 	TSharedPtr<Impl> impl_ = nullptr;
 
 public: 

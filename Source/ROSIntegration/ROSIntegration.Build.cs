@@ -40,13 +40,15 @@ public class ROSIntegration : ModuleRules
 		
 		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private"));
     		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private/rosbridge2cpp"));
+		    PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "Private/rosbridge2cpp"));
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
 				"Sockets",
-				"Networking"
+				"Networking",
+				"WebSockets"
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);
