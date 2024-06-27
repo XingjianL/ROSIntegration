@@ -106,19 +106,35 @@ struct GenericMember {
 	\see GenericMember, GenericValue::MemberIterator, GenericValue::ConstMemberIterator
  */
 template <bool Const, typename Encoding, typename Allocator>
-class GenericMemberIterator
-: public std::iterator<std::random_access_iterator_tag
-		, typename internal::MaybeAddConst<Const,GenericMember<Encoding,Allocator> >::Type> {
+class GenericMemberIterator{
+//: public std::iterator<std::random_access_iterator_tag
+//		, typename internal::MaybeAddConst<Const,GenericMember<Encoding,Allocator> >::Type> {
 
 	friend class GenericValue<Encoding,Allocator>;
 	template <bool, typename, typename> friend class GenericMemberIterator;
 
-	typedef GenericMember<Encoding,Allocator> PlainType;
-	typedef typename internal::MaybeAddConst<Const,PlainType>::Type ValueType;
-	typedef std::iterator<std::random_access_iterator_tag,ValueType> BaseType;
-
+	//typedef GenericMember<Encoding,Allocator> PlainType;
+	//typedef typename internal::MaybeAddConst<Const,PlainType>::Type ValueType;
+	//typedef std::iterator<std::random_access_iterator_tag,ValueType> BaseType;
+	using PlainType = GenericMember<Encoding, Allocator>;
+	using ValueType = std::conditional_t<Const, const PlainType, PlainType>;
+	using Pointer = ValueType*;
+	using Reference = ValueType&;
+	using DifferenceType = std::ptrdiff_t;
 public:
+	using iterator_category = std::random_access_iterator_tag;
+	using value_type = ValueType;
+	using pointer = Pointer;
+	using reference = Reference;
+	using difference_type = DifferenceType;
+
 	//! Iterator type itself
+	using Iterator = GenericMemberIterator;
+	//! Constant iterator type
+	using ConstIterator = GenericMemberIterator<true, Encoding, Allocator>;
+	//! Non-constant iterator type
+	using NonConstIterator = GenericMemberIterator<false, Encoding, Allocator>;
+	/*//! Iterator type itself
 	typedef GenericMemberIterator Iterator;
 	//! Constant iterator type
 	typedef GenericMemberIterator<true,Encoding,Allocator>  ConstIterator;
@@ -130,7 +146,7 @@ public:
 	//! Reference to (const) GenericMember
 	typedef typename BaseType::reference	   Reference;
 	//! Signed integer type (e.g. \c ptrdiff_t)
-	typedef typename BaseType::difference_type DifferenceType;
+	typedef typename BaseType::difference_type DifferenceType;*/
 
 	//! Default constructor (singular value)
 	/*! Creates an iterator pointing to no element.

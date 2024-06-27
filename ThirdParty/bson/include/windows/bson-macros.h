@@ -25,6 +25,8 @@
  */
 #pragma warning(disable:4668)
 
+//#pragma warning(disable:5105)
+
 
 #if !defined (BSON_INSIDE) && !defined (BSON_COMPILATION)
 #  error "Only <bson.h> can be included directly."
@@ -58,16 +60,22 @@
 #  define BSON_END_DECLS
 #endif
 
+// fix for warning C5105
+#if defined(__GNUC__)
+   #define DEFINED_GNUC_CHECK 1
+#else
+   #define DEFINED_GNUC_CHECK 0
+#endif
 
 #define BSON_GNUC_CHECK_VERSION(major, minor) \
-    (defined(__GNUC__) && \
+    (DEFINED_GNUC_CHECK && \
      ((__GNUC__ > (major)) || \
       ((__GNUC__ == (major)) && \
        (__GNUC_MINOR__ >= (minor)))))
 
 
 #define BSON_GNUC_IS_VERSION(major, minor) \
-    (defined(__GNUC__) && \
+    (DEFINED_GNUC_CHECK && \
      (__GNUC__ == (major)) && \
      (__GNUC_MINOR__ == (minor)))
 
