@@ -50,11 +50,12 @@
 # endif
 // Necessary for WinSock TCP to avoid collision with TEXT
 #include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/PreWindowsApi.h"
+//#include "Windows/PreWindowsApi.h"
+#include "Windows/WindowsHWrapper.h"
 #include "Windows/MinWindows.h"
 #include <winsock2.h>
 // Necessary for restoring UE4 TEXT
-#include "Windows/PostWindowsApi.h"
+//#include "Windows/PostWindowsApi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 #include <direct.h>
 #include <io.h>

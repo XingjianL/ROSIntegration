@@ -153,7 +153,7 @@ int TCPConnection::ReceiverThreadFunction()
 
 		if (bson_only_mode_) {
 			if (bson_state_read_length) {
-				binary_buffer.SetNumUninitialized(4, false);
+				binary_buffer.SetNumUninitialized(4, EAllowShrinking::No);
 				int32 bytes_read = 0;
 				if (_sock->Recv(binary_buffer.GetData() + bson_msg_length_read, 4 - bson_msg_length_read, bytes_read) && bytes_read > 0) {
 					bson_msg_length_read += bytes_read;
@@ -170,7 +170,7 @@ int TCPConnection::ReceiverThreadFunction()
 #endif
 						// Indicate the message retrieval mode
 						bson_state_read_length = false;
-						binary_buffer.SetNumUninitialized(bson_msg_length, false);  // bson_msg_length includes the 4 bytes for the size variable
+						binary_buffer.SetNumUninitialized(bson_msg_length, EAllowShrinking::No);  // bson_msg_length includes the 4 bytes for the size variable
 					} else if (bson_msg_length_read > 4) {
 						UE_LOG(LogROS, Error, 
 							TEXT("bson_msg_length_read is greater than 4 during bson_state_read_length==true. It's: %d"),
